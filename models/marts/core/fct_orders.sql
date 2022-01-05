@@ -1,35 +1,30 @@
-{{ config (
-    materialized="table"
-)}}
 
 with orders as (
     select * from {{ref('stg_orders') }}
 ),
 
-payments as (
+payment as (
     select * from {{ref('stg_payment') }}
 ),
 
-order_info as (
+order_payments as (
     select order_id,
-        customer_id
-    from orders
-),
-
-total_payment as (
-    select amount
+         sum(case when status = 'success' then amount end) as amount
     from payment
+    group by 1
+
 ),
 
-total as (
+final_pay as (
     select 
     orders.order_id,
-    orders.customer_id, 
-    payment.amount
+    orders.customer_id,
+    orders.order_date, 
+    coalesce(order_payments.amount, 0) as amount
 
 from orders
 
-left join payment using (customer_id)
+left join order_payments using (order_id)
 )
 
-select * from total
+select * from final_pay
